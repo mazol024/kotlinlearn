@@ -1,5 +1,6 @@
 package taxipark
 
+
 fun main(){
     var tp1 =  taxiPark(0..6, 0..9,
         trip(2, listOf(9), duration = 9, distance = 36.0),
@@ -15,7 +16,9 @@ fun main(){
         trip(2, listOf(3,7), duration = 10, distance = 31.0, discount = 0.2))
     println(" test 1 ${tp1.findFake()}")
     println(" test 2 ${tp1.findFaith(3)}")
-    println(" test 3 ${tp1.findSmartPass()}")
+    println(" test 3 ${tp1.findFrequentPass(Driver("D-1"))}")
+    println(" test 4 ${tp1.findSmartPass()}")
+    println(" test 5 ${tp1.findTheMostFrequentTripDuration()}")
 
 }
 fun TaxiPark.findFake(): Set<Driver> =
@@ -31,7 +34,7 @@ fun TaxiPark.findFrequentPass(driver: Driver):List<Passenger> =
     this.trips.filter { it.driver == driver }
         .flatMap { it.passengers }
         .groupingBy { it.name }.eachCount()
-        .filter { it.value > 2 }
+        .filter { it.value > 1 }
         .keys.map { Passenger(it) }
 
 fun TaxiPark.findSmartPass(): Collection<Passenger> =
@@ -48,3 +51,23 @@ fun TaxiPark.findSmartPass(): Collection<Passenger> =
                 .eachCount().getOrDefault(it1.key,0) < it1.value
         }.keys.map { Passenger(it) }
 
+fun TaxiPark.findTheMostFrequentTripDuration(): IntRange? =
+    this.trips.map { it.duration }
+        .sorted()
+        .groupingBy { it -> when {
+            it in 0..9 -> "one"
+            it in 10..19 -> "two"
+            it in 20..29 -> "three"
+            it in 30..39 -> "four"
+            else -> "out"
+        } }
+        .eachCount()
+        .maxBy { it.value }
+        .let { it -> when {
+            it?.key == "one" -> 0..9
+            it?.key == "two" -> 10..19
+            it?.key == "three" -> 20..29
+            it?.key == "four" -> 30..39
+            else -> 40..99
+        }
+             }
