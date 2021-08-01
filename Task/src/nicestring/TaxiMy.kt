@@ -71,3 +71,36 @@ fun TaxiPark.findTheMostFrequentTripDuration(): IntRange? =
             else -> 40..99
         }
              }
+fun TaxiPark.checkPareto(): Boolean {
+    var totaldriverscount:Int = this.allDrivers.sortedBy { it.name }.distinct().count()
+    var totalincome:Double = this.trips.sumByDouble {
+        it.cost
+    }
+    var superdriverscount:Int  = (totaldriverscount*0.2).roundToInt()
+    var eightypercentincome:Double = totalincome* 0.8
+    var incomeslist  = this.trips.groupingBy { it.driver.name }
+       .aggregateTo(mutableMapOf()){
+                key, accumulator: Double?, element, first ->
+                if (first)
+                    element.cost
+                else
+                    accumulator?.plus(element.cost)
+       }
+    var driverincomepares = listOf(Pair(incomeslist.values,incomeslist.keys))
+    //var earn = pares.map { it.first }.sortedBy { it.first()  }
+    var sortedincomeslist = driverincomepares.flatMap {  it.first }.sortedByDescending { it }
+    var superdriverstotal = driverincomepares.flatMap { it.first }
+        .sortedByDescending { it }
+        .filterIndexed { index, d ->  index < superdriverscount}
+        .sumByDouble { it?:0.0 }
+    println(" All data : \n totaldrivers: $totaldriverscount\n " +
+            "allincome: $totalincome \n "+
+            " eightypercentincome $eightypercentincome \n" +
+            "superdriverscount: $superdriverscount \n" +
+            " incomeslist: $incomeslist \n" +
+            "driverincomepares: $driverincomepares \n" +
+            "sortedincomeslist: $sortedincomeslist\n " +
+            "totals: $superdriverstotal \n "
+    )
+    return if(eightypercentincome - superdriverstotal > 0) false else true
+}
