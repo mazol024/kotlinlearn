@@ -1,43 +1,46 @@
 package taxipark
 
+import kotlin.math.roundToInt
 
-fun main(){
-    var tp1 =  taxiPark(0..6, 0..9,
-        trip(2, listOf(9), duration = 9, distance = 36.0),
-        trip(1, listOf(0,7), duration = 15, distance = 28.0),
-        trip(2, listOf(1), duration = 37, distance = 30.0),
-        trip(0, listOf(9), duration = 24, distance = 10.0),
-        trip(1, listOf(2), duration = 1, distance = 6.0),
-        trip(0, listOf(0, 9), duration = 9, distance = 7.0),
-        trip(2, listOf(1,2,3,7,8), duration = 18, distance = 39.0, discount = 0.1),
-        trip(1, listOf(1,3,9,4), duration = 19, distance = 1.0, discount = 0.2),
-        trip(1, listOf(3), duration = 16, distance = 23.0),
-        trip(5, listOf(3,5,2), duration = 16, distance = 123.0),
-        trip(2, listOf(3,7), duration = 10, distance = 31.0, discount = 0.2))
-    println(" test 1 ${tp1.findFake()}")
-    println(" test 2 ${tp1.findFaith(3)}")
-    println(" test 3 ${tp1.findFrequentPass(Driver("D-1"))}")
-    println(" test 4 ${tp1.findSmartPass()}")
-    println(" test 5 ${tp1.findTheMostFrequentTripDuration()}")
-
-}
-fun TaxiPark.findFake(): Set<Driver> =
+/*
+ * Task #1. Find all the drivers who performed no trips.
+ */
+fun TaxiPark.findFakeDrivers(): Set<Driver> =
     this.allDrivers.minus(
         this.trips.map { it.driver }).toSet()
 
-fun TaxiPark.findFaith(minTrips: Int): List<Passenger> =
-    this.trips.flatMap { it.passengers }
-        .groupingBy{ it.name }.eachCount().filter { it.value >2 }
-        .keys.map { Passenger(it) }
+/*
+ * Task #2. Find all the clients who completed at least the given number of trips.
+ */
+fun TaxiPark.findFaithfulPassengers(minTrips: Int): Set<Passenger>
+    { var  a:Set<Passenger>
+        if(minTrips > 0 ) {
+            a = this.trips
+                .flatMap { it.passengers }
+                .groupingBy { it.name }
+                .eachCount().filter { it.value >= minTrips }
+                .keys.map { Passenger(it) }.toSet()
+        }
+        else {
+            a = this.allPassengers
+        }
+        return a
+    }
 
-fun TaxiPark.findFrequentPass(driver: Driver):List<Passenger> =
+/*
+ * Task #3. Find all the passengers, who were taken by a given driver more than once.
+ */
+fun TaxiPark.findFrequentPassengers(driver: Driver): Set<Passenger> =
     this.trips.filter { it.driver == driver }
         .flatMap { it.passengers }
         .groupingBy { it.name }.eachCount()
         .filter { it.value > 1 }
-        .keys.map { Passenger(it) }
+        .keys.map { Passenger(it) }.toSet()
 
-fun TaxiPark.findSmartPass(): Collection<Passenger> =
+/*
+ * Task #4. Find the passengers who had a discount for majority of their trips.
+ */
+fun TaxiPark.findSmartPassengers(): Set<Passenger> =
     this.trips.filter { it.discount != null  }
         .flatMap { it.passengers }
         .groupingBy { it.name }
@@ -49,58 +52,59 @@ fun TaxiPark.findSmartPass(): Collection<Passenger> =
                 .flatMap { it.passengers }
                 .groupingBy { it.name }
                 .eachCount().getOrDefault(it1.key,0) < it1.value
-        }.keys.map { Passenger(it) }
+        }.keys.map { Passenger(it) }.toSet()
 
-fun TaxiPark.findTheMostFrequentTripDuration(): IntRange? =
-    this.trips.map { it.duration }
-        .sorted()
-        .groupingBy { it -> when {
-            it in 0..9 -> "one"
-            it in 10..19 -> "two"
-            it in 20..29 -> "three"
-            it in 30..39 -> "four"
-            else -> "out"
-        } }
-        .eachCount()
-        .maxBy { it.value }
-        .let { it -> when {
-            it?.key == "one" -> 0..9
-            it?.key == "two" -> 10..19
-            it?.key == "three" -> 20..29
-            it?.key == "four" -> 30..39
-            else -> 40..99
-        }
-             }
-fun TaxiPark.checkPareto(): Boolean {
+/*
+ * Task #5. Find the most frequent trip duration among minute periods 0..9, 10..19, 20..29, and so on.
+ * Return any period if many are the most frequent, return `null` if there're no trips.
+ */
+fun TaxiPark.findTheMostFrequentTripDurationPeriod(): IntRange?
+     {
+        var result:Int?
+        var resultrange:IntRange?
+        if (this.trips.count() == 0 ) return null
+        var maxtrip:Int? = this.trips
+            .map { it.duration }.max()
+        var mapres: Map<Int,Int> = mutableMapOf()
+        var i:Int = 0
+        var j:Int = 0
+        do {
+            j = this.trips.map { it.duration }
+                .filter { it in i..i+9 }.count()
+            mapres=  mapres + Pair(j,i)
+            i += 10
+            if ( i > maxtrip!!) break
+        }while (true)
+        result = mapres.get( mapres.keys.max())
+        resultrange = result!!..result!!+9
+        return resultrange
+    }
+
+
+/*
+ * Task #6.
+ * Check whether 20% of the drivers contribute 80% of the income.
+ */
+fun TaxiPark.checkParetoPrinciple(): Boolean {
+    if (this.trips.count() == 0) return false
     var totaldriverscount:Int = this.allDrivers.sortedBy { it.name }.distinct().count()
     var totalincome:Double = this.trips.sumByDouble {
         it.cost
     }
-    var superdriverscount:Int  = (totaldriverscount*0.2).roundToInt()
-    var eightypercentincome:Double = totalincome* 0.8
+    var superdriverscount:Int  = (totaldriverscount*20)/100
+    var eightypercentincome:Double = (totalincome* 80)/100
     var incomeslist  = this.trips.groupingBy { it.driver.name }
-       .aggregateTo(mutableMapOf()){
+        .aggregateTo(mutableMapOf()){
                 key, accumulator: Double?, element, first ->
-                if (first)
-                    element.cost
-                else
-                    accumulator?.plus(element.cost)
-       }
+            if (first)
+                element.cost
+            else
+                accumulator?.plus(element.cost)
+        }
     var driverincomepares = listOf(Pair(incomeslist.values,incomeslist.keys))
-    //var earn = pares.map { it.first }.sortedBy { it.first()  }
-    var sortedincomeslist = driverincomepares.flatMap {  it.first }.sortedByDescending { it }
     var superdriverstotal = driverincomepares.flatMap { it.first }
         .sortedByDescending { it }
         .filterIndexed { index, d ->  index < superdriverscount}
         .sumByDouble { it?:0.0 }
-    println(" All data : \n totaldrivers: $totaldriverscount\n " +
-            "allincome: $totalincome \n "+
-            " eightypercentincome $eightypercentincome \n" +
-            "superdriverscount: $superdriverscount \n" +
-            " incomeslist: $incomeslist \n" +
-            "driverincomepares: $driverincomepares \n" +
-            "sortedincomeslist: $sortedincomeslist\n " +
-            "totals: $superdriverstotal \n "
-    )
     return if(eightypercentincome - superdriverstotal > 0) false else true
 }
